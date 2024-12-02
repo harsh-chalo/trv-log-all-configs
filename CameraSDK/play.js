@@ -494,7 +494,12 @@ global.ConnectApi.onconnect = function (api_conn, code) {
     //     '错误码：' +
     //     code
     // );
-    Player.checkNextDevice("couldn't fetch", 'offline');
+    Player.checkNextDevice({
+      err: 'offline',
+      fwVersion: "couldn't fetch fwVersion",
+      iccid: "couldn't fetch iccid",
+      imsi: "couldn't fetch imsi",
+    });
     // Player.disconnectAndExitProcess();
   }
 };
@@ -527,7 +532,12 @@ global.ConnectApi.onloginresult = function (api_conn, result) {
         '错误码：' +
         result
     );
-    Player.checkNextDevice("couldn't fetch", 'auth issue');
+    Player.checkNextDevice({
+      err: 'auth issue',
+      fwVersion: "couldn't fetch fwVersion",
+      iccid: "couldn't fetch iccid",
+      imsi: "couldn't fetch imsi",
+    });
     // Player.disconnectAndExitProcess();
   }
 };
@@ -556,7 +566,12 @@ global.ConnectApi.ondisconnect = function (api_conn, code) {
     (api_conn.deviceid ? api_conn.deviceid : api_conn.ip) + '设备断开连接'
   );
 
-  Player.checkNextDevice("couldn't fetch", "couldn't connect");
+  Player.checkNextDevice({
+    err: "couldn't connect",
+    fwVersion: "couldn't fetch fwVersion",
+    iccid: "couldn't fetch iccid",
+    imsi: "couldn't fetch imsi",
+  });
 
   console.log('p2p连接断开回调', api_conn, sessionList);
   if (api_conn) {
@@ -862,8 +877,9 @@ Player.ConnectDevice = function (
       }
       try {
         global.ConnectApi.connectbyid(session, devid, useHttps, cb);
+      } catch (err) {
+        console.log('====err connectbyid', err);
       }
-      catch(err) {console.log("====err connectbyid",err)}
       // global.ConnectApi.connectbyid(session, devid, useHttps, cb, turnIp, turnPort);
     }
     // else {

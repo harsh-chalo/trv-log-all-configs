@@ -6,6 +6,7 @@ const Player = global.VideoPlayer;
 const devices = __dirname + '/devices.csv';
 const firmwareData = __dirname + '/firmwareData.csv';
 const fs = require('fs');
+const { isEmpty } = require('lodash');
 let deviceIds = [];
 let csvData = [];
 
@@ -59,19 +60,23 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
     });
   } else {
     const arr = data.split('\n');
+
+    arr.splice(arr.length - 1, 1);
     arr.forEach((ele) => {
       const [deviceId, ...rest] = ele.split(',');
       const reversedRest = rest.reverse();
-      // console.log(reversedRest, deviceId);
-      let fwVersion = '';
+      // console.log({ reversedRest, deviceId });
+      let iccid, imsi, fwVersion;
       let pass = [];
       if (reversedRest[0] === 'failed' || reversedRest[0] === 'success') {
         // old device
         // console.log('old device', deviceId);
-        if (reversedRest[1] === '') {
-          fwVersion = reversedRest[2];
-        }
-        for (let i = 3; i < reversedRest.length; i++) {
+        // if (reversedRest[1] === '') {
+        imsi = reversedRest[2];
+        iccid = reversedRest[3];
+        fwVersion = reversedRest[4];
+        // }
+        for (let i = 5; i < reversedRest.length; i++) {
           pass.push(reversedRest[i]);
         }
       } else {
@@ -87,11 +92,14 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
       deviceIds.push({
         id: deviceId,
         password: reversePass === 'empty password' ? '' : reversePass,
+        iccid,
+        imsi,
         fwVersion,
       });
     });
     console.log(deviceIds);
-    if (!deviceIds[0].fwVersion) {
+    if (deviceIds[0].fwVersion === "couldn't fetch fwVersion") {
+      console.log('=====1111', deviceIds[0]);
       Player.ConnectDevice(
         deviceIds[0].id,
         '',
@@ -106,7 +114,13 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
         null
       );
     } else {
-      Player.checkNextDevice(deviceIds[0].fwVersion);
+      console.log('=====2222', deviceIds[0]);
+      Player.checkNextDevice({
+        err: null,
+        fwVersion: deviceIds[0].fwVersion,
+        iccid: deviceIds[0].iccid,
+        imsi: deviceIds[0].imsi,
+      });
     }
   }
 });
@@ -119,16 +133,29 @@ global.ConnectApi.onremotesetup = function (
 ) {
   if (remoteSetupResult == 0) {
     const _str = JSON.parse(str);
-    Player.checkNextDevice(_str.IPCam.DeviceInfo.FWVersion);
+    Player.checkNextDevice({
+      err: null,
+      fwVersion: isEmpty(_str.IPCam.DeviceInfo)
+        ? "couldn't fetch fwVersion"
+        : _str.IPCam.DeviceInfo.FWVersion,
+      iccid: isEmpty(_str.IPCam.Lte)
+        ? "couldn't fetch iccid"
+        : _str.IPCam.Lte.ICCID,
+      imsi: isEmpty(_str.IPCam.Lte)
+        ? "couldn't fetch imsi"
+        : _str.IPCam.Lte.IMSI,
+    });
   }
 };
 
-Player.checkNextDevice = function (fwVersion, err) {
-  console.log('======== checkNextDevice', { fwVersion, err });
+Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi }) {
+  console.log('======== checkNextDevice', { err, fwVersion, iccid, imsi });
   csvData.push(
     `${deviceIds[0].id},${
       deviceIds[0].password ? deviceIds[0].password : 'empty password'
-    },${fwVersion},${err ? err : 'found'},${err ? 'failed' : 'success'}\n`
+    },${fwVersion},${iccid},${imsi},${err ? err : 'online'},${
+      err ? 'failed' : 'success'
+    }\n`
   );
 
   let resultFilePath = __dirname + `/firmwareData`;
@@ -149,7 +176,11 @@ Player.checkNextDevice = function (fwVersion, err) {
     }, 2000);
     return;
   }
-  if (!deviceIds[0].fwVersion && deviceIds[0].id.length === 10) {
+  if (
+    (deviceIds[0].fwVersion === "couldn't fetch fwVersion" ||
+      !deviceIds[0].fwVersion) &&
+    deviceIds[0].id.length === 10
+  ) {
     Player.ConnectDevice(
       deviceIds[0].id,
       '',
@@ -165,8 +196,19 @@ Player.checkNextDevice = function (fwVersion, err) {
     );
   } else {
     if (deviceIds[0].id.length !== 10)
-      Player.checkNextDevice("couldn't fetch", 'device id wrong');
-    else Player.checkNextDevice(deviceIds[0].fwVersion);
+      Player.checkNextDevice({
+        err: 'device id wrong',
+        fwVersion: "couldn't fetch fwVersion",
+        iccid: "couldn't fetch iccid",
+        imsi: "couldn't fetch imsi",
+      });
+    else
+      Player.checkNextDevice({
+        err: null,
+        fwVersion: deviceIds[0].fwVersion,
+        iccid: deviceIds[0].iccid,
+        imsi: deviceIds[0].imsi,
+      });
   }
 };
 
@@ -176,6 +218,7 @@ Player.isDeviceConnected = () => {
     Method: 'get',
     IPCam: {
       DeviceInfo: {},
+      LTE: {},
     },
     Authorization: {
       Verify: '',
