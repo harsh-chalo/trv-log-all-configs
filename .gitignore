@@ -4,3 +4,5 @@ CameraSDK2
 cleanup.sh
 .DS_Store
 devices.csv
+firmwareData.csv
+devicesCopy.csv
