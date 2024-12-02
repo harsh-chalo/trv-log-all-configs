@@ -1,0 +1,6 @@
+/node_modules
+venv
+CameraSDK2
+cleanup.sh
+.DS_Store
+devices.csv
