@@ -496,10 +496,12 @@ global.ConnectApi.onconnect = function (api_conn, code) {
     // );
     Player.checkNextDevice({
       err: 'offline',
-      fwVersion: "couldn't fetch fwVersion",
-      iccid: "couldn't fetch iccid",
-      imsi: "couldn't fetch imsi",
-      timezone: "couldn't fetch timezone",
+      fwVersion: '-',
+      iccid: '-',
+      imsi: '-',
+      timezone: '-',
+      mainFps: '-',
+      subFps: '-',
     });
     // Player.disconnectAndExitProcess();
   }
@@ -535,10 +537,12 @@ global.ConnectApi.onloginresult = function (api_conn, result) {
     );
     Player.checkNextDevice({
       err: 'auth issue',
-      fwVersion: "couldn't fetch fwVersion",
-      iccid: "couldn't fetch iccid",
-      imsi: "couldn't fetch imsi",
-      timezone: "couldn't fetch timezone",
+      fwVersion: '-',
+      iccid: '-',
+      imsi: '-',
+      timezone: '-',
+      mainFps: '-',
+      subFps: '-',
     });
     // Player.disconnectAndExitProcess();
   }
@@ -570,10 +574,12 @@ global.ConnectApi.ondisconnect = function (api_conn, code) {
 
   Player.checkNextDevice({
     err: "couldn't connect",
-    fwVersion: "couldn't fetch fwVersion",
-    iccid: "couldn't fetch iccid",
-    imsi: "couldn't fetch imsi",
-    timezone: "couldn't fetch timezone",
+    fwVersion: '-',
+    iccid: '-',
+    imsi: '-',
+    timezone: '-',
+    mainFps: '-',
+    subFps: '-',
   });
 
   console.log('p2p连接断开回调', api_conn, sessionList);

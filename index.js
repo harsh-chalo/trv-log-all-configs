@@ -9,6 +9,9 @@ const fs = require('fs');
 const { isEmpty } = require('lodash');
 let deviceIds = [];
 let csvData = [];
+csvData.push(
+  `Camera ID,Password,FW Version,ICCID,IMSI,Timezone,Mainstream Fps,Substream Fps,Cam status,Result\n`
+);
 let jsonData = {};
 
 fs.readFile(firmwareData, 'utf8', (err, data) => {
@@ -62,23 +65,26 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
   } else {
     const arr = data.split('\n');
 
+    arr.splice(0, 1);
     arr.splice(arr.length - 1, 1);
     arr.forEach((ele) => {
       const [deviceId, ...rest] = ele.split(',');
       const reversedRest = rest.reverse();
       console.log({ reversedRest, deviceId });
-      let iccid, imsi, fwVersion, timezone;
+      let iccid, imsi, fwVersion, timezone, mainFps, subFps;
       let pass = [];
       if (reversedRest[0] === 'failed' || reversedRest[0] === 'success') {
         // old device
 
         // if (reversedRest[1] === '') {
-        timezone = reversedRest[2];
-        imsi = reversedRest[3];
-        iccid = reversedRest[4];
-        fwVersion = reversedRest[5];
+        mainFps = reversedRest[2];
+        subFps = reversedRest[3];
+        timezone = reversedRest[4];
+        imsi = reversedRest[5];
+        iccid = reversedRest[6];
+        fwVersion = reversedRest[7];
         // }
-        for (let i = 6; i < reversedRest.length; i++) {
+        for (let i = 8; i < reversedRest.length; i++) {
           pass.push(reversedRest[i]);
         }
       } else {
@@ -98,10 +104,12 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
         imsi,
         fwVersion,
         timezone,
+        mainFps,
+        subFps,
       });
     });
     console.log(deviceIds);
-    if (deviceIds[0].fwVersion === "couldn't fetch fwVersion") {
+    if (deviceIds[0].fwVersion === '-') {
       console.log('=====1111', deviceIds[0]);
       Player.ConnectDevice(
         deviceIds[0].id,
@@ -124,6 +132,8 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
         iccid: deviceIds[0].iccid,
         imsi: deviceIds[0].imsi,
         timezone: deviceIds[0].timezone,
+        mainFps: deviceIds[0].mainFps,
+        subFps: deviceIds[0].subFps,
       });
     }
   }
@@ -140,35 +150,47 @@ global.ConnectApi.onremotesetup = function (
     Player.checkNextDevice({
       err: null,
       fwVersion: isEmpty(_str.IPCam.DeviceInfo)
-        ? "couldn't fetch fwVersion"
+        ? '-'
         : _str.IPCam.DeviceInfo.FWVersion,
-      iccid: isEmpty(_str.IPCam.Lte)
-        ? "couldn't fetch iccid"
-        : _str.IPCam.Lte.ICCID,
-      imsi: isEmpty(_str.IPCam.Lte)
-        ? "couldn't fetch imsi"
-        : _str.IPCam.Lte.IMSI,
+      iccid: isEmpty(_str.IPCam.Lte) ? '-' : _str.IPCam.Lte.ICCID,
+      imsi: isEmpty(_str.IPCam.Lte) ? '-' : _str.IPCam.Lte.IMSI,
       timezone: isEmpty(_str.IPCam.SystemOperation)
-        ? "couldn't fetch timezone"
+        ? '-'
         : _str.IPCam.SystemOperation.TimeSync.TimeZone,
+      mainFps: isEmpty(_str.IPCam.videoManagerV2)
+        ? '-'
+        : _str.IPCam.videoManagerV2[0].frameRate,
+      subFps: isEmpty(_str.IPCam.videoManagerV2)
+        ? '-'
+        : _str.IPCam.videoManagerV2[1].frameRate,
     });
   }
 };
 
-Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
+Player.checkNextDevice = function ({
+  err,
+  fwVersion,
+  iccid,
+  imsi,
+  timezone,
+  mainFps,
+  subFps,
+}) {
   console.log('======== checkNextDevice', {
     err,
     fwVersion,
     iccid,
     imsi,
     timezone,
+    mainFps,
+    subFps,
   });
   csvData.push(
     `${deviceIds[0].id},${
       deviceIds[0].password ? deviceIds[0].password : 'empty password'
-    },${fwVersion},${iccid},${imsi},${timezone},${err ? err : 'online'},${
-      err ? 'failed' : 'success'
-    }\n`
+    },${fwVersion},${iccid},${imsi},${timezone},${mainFps},${subFps},${
+      err ? err : 'online'
+    },${err ? 'failed' : 'success'}\n`
   );
 
   jsonData[deviceIds[0].id] = {
@@ -176,6 +198,8 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
     iccid,
     imsi,
     timezone,
+    mainFps,
+    subFps,
   };
 
   let resultFilePath = __dirname + `/firmwareData`;
@@ -205,8 +229,7 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
     return;
   }
   if (
-    (deviceIds[0].fwVersion === "couldn't fetch fwVersion" ||
-      !deviceIds[0].fwVersion) &&
+    (deviceIds[0].fwVersion === '-' || !deviceIds[0].fwVersion) &&
     deviceIds[0].id.length === 10
   ) {
     Player.ConnectDevice(
@@ -226,10 +249,12 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
     if (deviceIds[0].id.length !== 10)
       Player.checkNextDevice({
         err: 'device id wrong',
-        fwVersion: "couldn't fetch fwVersion",
-        iccid: "couldn't fetch iccid",
-        imsi: "couldn't fetch imsi",
-        timezone: "couldn't fetch timezone",
+        fwVersion: '-',
+        iccid: '-',
+        imsi: '-',
+        timezone: '-',
+        mainFps: '-',
+        subFps: '-',
       });
     else
       Player.checkNextDevice({
@@ -238,6 +263,8 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
         iccid: deviceIds[0].iccid,
         imsi: deviceIds[0].imsi,
         timezone: deviceIds[0].timezone,
+        mainFps: deviceIds[0].mainFps,
+        subFps: deviceIds[0].subFps,
       });
   }
 };
@@ -250,6 +277,7 @@ Player.isDeviceConnected = () => {
       DeviceInfo: {},
       LTE: {},
       SystemOperation: { TimeSync: { TimeZone: {} } },
+      videoManagerV2: [],
     },
     Authorization: {
       Verify: '',
