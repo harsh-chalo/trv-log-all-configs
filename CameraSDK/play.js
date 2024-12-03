@@ -499,6 +499,7 @@ global.ConnectApi.onconnect = function (api_conn, code) {
       fwVersion: "couldn't fetch fwVersion",
       iccid: "couldn't fetch iccid",
       imsi: "couldn't fetch imsi",
+      timezone: "couldn't fetch timezone",
     });
     // Player.disconnectAndExitProcess();
   }
@@ -537,6 +538,7 @@ global.ConnectApi.onloginresult = function (api_conn, result) {
       fwVersion: "couldn't fetch fwVersion",
       iccid: "couldn't fetch iccid",
       imsi: "couldn't fetch imsi",
+      timezone: "couldn't fetch timezone",
     });
     // Player.disconnectAndExitProcess();
   }
@@ -571,6 +573,7 @@ global.ConnectApi.ondisconnect = function (api_conn, code) {
     fwVersion: "couldn't fetch fwVersion",
     iccid: "couldn't fetch iccid",
     imsi: "couldn't fetch imsi",
+    timezone: "couldn't fetch timezone",
   });
 
   console.log('p2p连接断开回调', api_conn, sessionList);

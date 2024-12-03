@@ -9,6 +9,7 @@ const fs = require('fs');
 const { isEmpty } = require('lodash');
 let deviceIds = [];
 let csvData = [];
+let jsonData = {};
 
 fs.readFile(firmwareData, 'utf8', (err, data) => {
   if (err) {
@@ -65,18 +66,19 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
     arr.forEach((ele) => {
       const [deviceId, ...rest] = ele.split(',');
       const reversedRest = rest.reverse();
-      // console.log({ reversedRest, deviceId });
-      let iccid, imsi, fwVersion;
+      console.log({ reversedRest, deviceId });
+      let iccid, imsi, fwVersion, timezone;
       let pass = [];
       if (reversedRest[0] === 'failed' || reversedRest[0] === 'success') {
         // old device
-        // console.log('old device', deviceId);
+
         // if (reversedRest[1] === '') {
-        imsi = reversedRest[2];
-        iccid = reversedRest[3];
-        fwVersion = reversedRest[4];
+        timezone = reversedRest[2];
+        imsi = reversedRest[3];
+        iccid = reversedRest[4];
+        fwVersion = reversedRest[5];
         // }
-        for (let i = 5; i < reversedRest.length; i++) {
+        for (let i = 6; i < reversedRest.length; i++) {
           pass.push(reversedRest[i]);
         }
       } else {
@@ -95,6 +97,7 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
         iccid,
         imsi,
         fwVersion,
+        timezone,
       });
     });
     console.log(deviceIds);
@@ -120,6 +123,7 @@ fs.readFile(firmwareData, 'utf8', (err, data) => {
         fwVersion: deviceIds[0].fwVersion,
         iccid: deviceIds[0].iccid,
         imsi: deviceIds[0].imsi,
+        timezone: deviceIds[0].timezone,
       });
     }
   }
@@ -144,19 +148,35 @@ global.ConnectApi.onremotesetup = function (
       imsi: isEmpty(_str.IPCam.Lte)
         ? "couldn't fetch imsi"
         : _str.IPCam.Lte.IMSI,
+      timezone: isEmpty(_str.IPCam.SystemOperation)
+        ? "couldn't fetch timezone"
+        : _str.IPCam.SystemOperation.TimeSync.TimeZone,
     });
   }
 };
 
-Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi }) {
-  console.log('======== checkNextDevice', { err, fwVersion, iccid, imsi });
+Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi, timezone }) {
+  console.log('======== checkNextDevice', {
+    err,
+    fwVersion,
+    iccid,
+    imsi,
+    timezone,
+  });
   csvData.push(
     `${deviceIds[0].id},${
       deviceIds[0].password ? deviceIds[0].password : 'empty password'
-    },${fwVersion},${iccid},${imsi},${err ? err : 'online'},${
+    },${fwVersion},${iccid},${imsi},${timezone},${err ? err : 'online'},${
       err ? 'failed' : 'success'
     }\n`
   );
+
+  jsonData[deviceIds[0].id] = {
+    fwVersion,
+    iccid,
+    imsi,
+    timezone,
+  };
 
   let resultFilePath = __dirname + `/firmwareData`;
   resultFilePath += '.csv';
@@ -169,7 +189,15 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi }) {
   deviceIds.splice(0, 1);
 
   if (deviceIds.length === 0) {
-    console.log('final data', csvData);
+    const jsonStr = JSON.stringify(jsonData);
+    console.log('final data', { jsonStr });
+
+    let configsFilePath = __dirname + `/configData.json`;
+    fs.writeFile(configsFilePath, jsonStr, (err) => {
+      if (err) console.error('Error writing the json file:', err);
+      else console.log('json file saved successfully.');
+      // process.exit(0);
+    });
 
     setTimeout(() => {
       process.exit(0);
@@ -201,6 +229,7 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi }) {
         fwVersion: "couldn't fetch fwVersion",
         iccid: "couldn't fetch iccid",
         imsi: "couldn't fetch imsi",
+        timezone: "couldn't fetch timezone",
       });
     else
       Player.checkNextDevice({
@@ -208,6 +237,7 @@ Player.checkNextDevice = function ({ err, fwVersion, iccid, imsi }) {
         fwVersion: deviceIds[0].fwVersion,
         iccid: deviceIds[0].iccid,
         imsi: deviceIds[0].imsi,
+        timezone: deviceIds[0].timezone,
       });
   }
 };
@@ -219,6 +249,7 @@ Player.isDeviceConnected = () => {
     IPCam: {
       DeviceInfo: {},
       LTE: {},
+      SystemOperation: { TimeSync: { TimeZone: {} } },
     },
     Authorization: {
       Verify: '',
